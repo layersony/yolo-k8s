@@ -1,5 +1,50 @@
-# Docker Implementation Documentation
+# Docker + Ansible + Vagrant Implementation Documentation
 ## YOLO E-Commerce Application
+
+This Explanation demostates I used Vagrant to provision a development virtual machine and Ansible to automate the deployment of my Dockerized YOLO e-commerce application with 3-teir stack (Frontend, Backend, and MongoDB).
+
+### Table of Content
+1. [Docker Explanation](#docker-explanation)
+2. [Vagrant Explanation](#vagrant-explanation)
+3. [Ansible Explanation](#ansible-explanation)
+4. [Commplete WorkFlow - Setup and Demo](#commplete-workflow---setup-and-demo)
+---
+### Project Strucuture
+
+```
+yolo/
+|-- vagrant/
+│   -- Vagrantfile  # VM configuration and provisioning
+│   -- .vagrant/  # Vagrant metadata (auto-generated)
+|
+|-- ansible/
+│   |-- ansible.cfg  # Ansible configuration
+│   |-- group_vars/
+│   |   -- all.yml   # Global variables for all environments
+│   |-- inventory/
+│   │   -- development/
+│   │       -- hosts.ini    # Development environment hosts
+│   |-- playbooks/
+│   |     -- deploy-dev.yml   # Main deployment playbook
+│   |-- roles/    # Ansible roles for each component
+│        -- backend/
+│        -- common/
+│        -- docker/
+│        -- frontend/
+│        -- mongodb/
+|
+|-- backend/
+|-- client/
+|-- .gitignore
+|-- backend.png
+|-- frontend.png
+|-- docker-compose.yml
+|-- LICENSE
+|-- README.md
+```
+
+---
+# Docker Explanation
 
 ## 1. Base Image Selection
 
@@ -230,9 +275,171 @@ Frontend: https://hub.docker.com/r/sammaingi/yolo-frontend
 ### Screenshot:
 
 *Frontend Repository:*
-![DockerHub Frontend Repository](./frontend.png)
+![DockerHub Frontend Repository](./images/frontend.png)
 *Figure 1: DockerHub repository showing yolo-frontend image with version 1.0.0*
 
 *Backend Repository:*
-![DockerHub Backend Repository](./backend.png)
+![DockerHub Backend Repository](./images/backend.png)
 *Figure 2: DockerHub repository showing yolo-backend image with version 1.0.0*
+
+---
+
+# Vagrant Explanation
+
+### Configuration Details
+In the Vagrantfile it contains
+- Base box: Ubuntu 22.04 (Jammy Jelly) - Lastest offered by Cancanical
+- Hostname: `yolo-dev`
+- Private Network: `192.168.56.10`
+- Port Forwarding:
+    - Frontend: 3000 -> 3000
+    - Backend: 5001 -> 5001
+    - MongoDB: 27017 -> 27017
+- Resources: `1024 MB RAM, 2CPUs`
+- Provisioning: Ansible playbook execution
+
+Essentials Basic Commands
+```bash
+cd vagrant
+
+# initialize and start VM
+vagrant up
+
+# ssh to VM
+vagrant ssh
+
+# Provisioning without recreating VM
+vagrant provision
+
+# Stop VM
+vagrant halt
+
+# Destory VM
+vagrant destroy
+```
+---
+
+# Ansible Explanation
+
+### Configuration Files and Setup
+
+`ansible.cfg` :
+It Sets the following:
+- Roles path: where the roles are located
+- inventory: where the ip address and hosts will be
+- Disable SSH Key only for development convenience
+
+`deply-dev.yml` :
+It's a playbook that orchestrates the deployment in this order:
+- Common Role: System pre-requisties and base packages
+- Docker Role: Docker engine Installation and Configuration
+- MongoDB ROle: For MongoDB container deployment
+- Backend Role: For Backend container deployment
+- Frontend Rolee: For React Frontend Container
+
+`group_vars/all.yml` :
+It's a Centralized file holding configuration variables. Incase of any modifications one could navigate to `vagrant\` and run `vagrant provision` to apply changes
+
+The Access Points: Frontend 
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5001
+- MongoDB: mongodb://localhost:27017
+
+Essentials Basic Commands
+
+```bash
+
+cd ansible
+
+# To Run deployment playbook
+ansible-playbook playbooks/deploy-dev.yml
+
+# To Run Specific Roles using tags
+ansible-playbook playbooks/deploy-dev.yml --tags "docker"
+ansible-playbook playbooks/deploy-dev.yml --tags "backend,frontend"
+ansible-playbook playbooks/deploy-dev.yml --tags "mongodb"
+
+# To Check Playbook syntanx incase of any change
+ansible-playbook playbooks/deploy-dev.yml --syntax-check
+
+# Test Connection to all Hosts
+ansible all -m ping
+
+# To view Hosts
+ansible-inventory --list
+```
+
+---
+# Commplete WorkFlow - Setup and Demo
+
+#### Initial Setup
+```bash
+cd vagrant
+
+# Start VM and auto-provision with Ansible
+vagrant up
+
+# It will perform the following:
+# 1. Download Ubuntu 22.04 base box (first time only)
+# 2. Create and configure the VM
+# 3. Set up networking and port forwarding
+# 4. Execute Ansible playbook automatically
+# 5. Deploy entire application stack
+
+```
+
+#### For Deveploment
+
+```bash
+# any change to playbooks
+nano ../ansible/roles/backend/tasks/main.yml
+
+# Re-provision without recreating VM
+vagrant provision
+
+# OR
+
+# re-run Ansible manually with more control
+vagrant ssh
+cd /vagrant/ansible
+ansible-playbook playbooks/deploy-dev.yml --tags "backend"
+exit
+```
+
+#### Cleanup
+```bash
+# Stop VM and Preserves state
+vagrant halt
+
+# Completely remove of VM
+vagrant destroy
+
+# Remove downloaded box
+vagrant box remove ubuntu/jammy64
+```
+
+### Demo Pictures and Running Containers
+
+*Docker Containers Running in VM:*
+![Docker Containers Running:](./images/running_containers.png)
+*Figure 3: Docker Containers Running in VM*
+
+#### Frontend
+
+*Frontend Running in VM, Localhost*
+![Frontend Running in VM, Localhost](./images/frontend_running.png)
+*Figure 4: Frontend Running in VM, Localhost*
+
+*Frontend Running in Browser*
+![Frontend Running in Browser](./images/frontend_browser.png)
+*Figure 5: Frontend Running in Browser*
+
+#### Backend
+
+*Backend Running in VM, Localhost*
+![Backend Running in VM, Localhost](./images/backend_running.png)
+*Figure 6: Backend Running in VM, Localhost*
+
+*Backend Running in Browser*
+![Backend Running in Browser](./images/backend_browser.png)
+*Figure 7: Backend Running in Browser*
