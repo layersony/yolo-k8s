@@ -20,3 +20,21 @@
 
     - role: docker
       tags: [docker]
+
+    - role: mongodb
+      tags: [mongodb]
+
+    - role: backend
+      tags: [backend]
+
+    - role: frontend
+      tags: [frontend]
+
+  post_tasks:
+    - name: Dev environment info
+      debug:
+        msg:
+          - "Development environment ready"
+          - "Frontend: http://localhost:{{ frontend_port }}"
+          - "Backend: http://localhost:{{ backend_port }}"
+          - "MongoDB: mongodb://localhost:{{ mongodb_port }}"

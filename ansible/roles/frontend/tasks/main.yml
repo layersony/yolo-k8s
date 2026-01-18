@@ -1,0 +1,35 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for frontend
+- name: Deploy Frontend container
+  block:
+    - name: Pull Frontend image
+      docker_image:
+        name: "{{ frontend_image }}"
+        source: pull
+
+    - name: Run Frontend container
+      docker_container:
+        name: "{{ frontend_container }}"
+        image: "{{ frontend_image }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ frontend_port }}:80"
+        env:
+          REACT_APP_API_URL: "http://{{ backend_container }}:5001"
+        networks:
+          - name: "{{ network_name }}"
+
+    - name: Wait for Frontend
+      uri:
+        url: "http://localhost:{{ frontend_port }}"
+        status_code: 200
+        timeout: 5
+      register: frontend_health
+      until: frontend_health.status == 200
+      retries: 10
+      delay: 5
+      changed_when: false
+
+  tags: frontend

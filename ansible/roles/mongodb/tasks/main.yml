@@ -1,0 +1,55 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for mongodb
+- name: Setup MongoDB container
+  block:
+    - name: Create MongoDB data directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ app_dir }}/mongodb_data"
+        - "{{ app_dir }}/mongodb_config"
+
+    - name: Create Docker network
+      docker_network:
+        name: "{{ network_name }}"
+        state: present
+
+    - name: Pull MongoDB image
+      docker_image:
+        name: "{{ mongodb_image }}"
+        source: pull
+
+    - name: Run MongoDB container
+      docker_container:
+        name: "{{ mongodb_container }}"
+        image: "{{ mongodb_image }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ mongodb_port }}:27017"
+        env:
+          MONGO_INITDB_DATABASE: "{{ mongodb_database }}"
+        volumes:
+          - "{{ app_dir }}/mongodb_data:/data/db"
+          - "{{ app_dir }}/mongodb_config:/data/configdb"
+        networks:
+          - name: "{{ network_name }}"
+        healthcheck:
+          test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+          start_period: 10s
+
+    # - name: Check MongoDB is healthy
+    #   command: "docker exec {{ mongodb_container }} mongosh --eval 'db.adminCommand(\"ping\")'"
+    #   register: mongo_health
+    #   until: mongo_health.rc == 0
+    #   retries: 10
+    #   delay: 5
+    #   changed_when: false
+
+  tags: mongodb

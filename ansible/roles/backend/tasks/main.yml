@@ -1,0 +1,37 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for backend
+- name: Deploy Backend container
+  block:
+    - name: Pull Backend image
+      docker_image:
+        name: "{{ backend_image }}"
+        source: pull
+
+    - name: Run Backend container
+      docker_container:
+        name: "{{ backend_container }}"
+        image: "{{ backend_image }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ backend_port }}:5001"
+        env:
+          PORT: "5001"
+          MONGODB_URI: "mongodb://{{ mongodb_container }}:27017/{{ mongodb_database }}"
+          NODE_ENV: "{{ node_env }}"
+        networks:
+          - name: "{{ network_name }}"
+
+    # - name: Wait for Backend API
+    #   uri:
+    #     url: "http://localhost:{{ backend_port }}/api/products"
+    #     status_code: 200
+    #     timeout: 5
+    #   register: backend_health
+    #   until: backend_health.status == 200
+    #   retries: 12
+    #   delay: 5
+    #   changed_when: false
+
+  tags: backend
