@@ -1,0 +1,26 @@
+# common for all envs
+app_name: yolo-ecommerce
+app_dir: /opt/yolo-app 
+repo_url: https://github.com/layersony/yolo
+
+# Docker images
+mongodb_image: mongo:7
+backend_image: sammaingi/yolo-backend:1.1.2
+frontend_image: sammaingi/yolo-frontend:1.1.0
+
+# Container names
+mongodb_container: yolo-mongodb
+backend_container: yolo-backend
+frontend_container: yolo-frontend
+
+# network
+network_name: yolo-network
+
+# Ports
+mongodb_port: 27017
+backend_port: 5001
+frontend_port: 3000
+
+# environment
+node_env: production
+mongodb_database: yolo

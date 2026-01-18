@@ -1,0 +1,20 @@
+---
+- name: Deploy YOLO Application - Development Only
+  hosts: all
+  become: true
+  vars:
+    app_env: development
+
+  pre_tasks:
+    - name: Load development variables
+      include_vars: 
+        file: "../group_vars/all.yml"
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+  roles:
+    - role: common
+      tags: [common]
+

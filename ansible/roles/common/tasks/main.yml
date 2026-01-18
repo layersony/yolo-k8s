@@ -1,0 +1,23 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for common
+- name: Install Common Packages
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+      - curl
+      - wget
+      - git
+      - vim
+      - htop
+      - net-tools
+
+- name: Ensure app directory exists
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    mode: '0755'
+
+    
