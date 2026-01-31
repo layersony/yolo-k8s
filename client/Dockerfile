@@ -13,11 +13,20 @@ RUN npm ci
 # Copy the rest of the application source code
 COPY . .
 
+# Accept build argument and set as environment variable
+# ARG REACT_APP_API_URL
+# ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
+ENV REACT_APP_API_URL=/api
+
 # Build application with legacy OpenSSL provider flag for compatibility
 RUN NODE_OPTIONS=--openssl-legacy-provider npm run build
 
 # Production stage: Use lightweight Nginx on Alpine Linux
 FROM nginx:stable-alpine AS production
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the built application from the build stage to Nginx's html directory
 COPY --from=build /app/build /usr/share/nginx/html
