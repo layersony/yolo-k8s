@@ -1,214 +1,238 @@
-# YOLO - E-commerce Application
+# YOLO - E-commerce Application Deployment Via Kubernetes (GKE)
 
 A full-stack e-commerce application built with Node.js, Express, MongoDB, and React. 
-It Demonstrates modern web development practices with containerized deployment using Docker, automated provisioning with Vagrant and configuration management with Ansible
+It Demonstrates modern web development practices with containerized deployment using Docker and Kubernetes
+
+- *Frontend*: React application served by Nginx
+- *Backend*: Node.js API server
+- *Database*: MongoDB with persistent storage
 
 ## Features
 - Product Management - List, Add, Edit and Delete Products
 - Modern React Frontend
 - Restful API Backend
 - Persistent Data Storage with MongoDB
-- Automated Infrasturture Provisioning
-- Configuration management with Ansible
 
-## Tech Stack
+## Live Application
 
-### Frontend
-- React.js - UI library
-- CSS3 - Styling
-- HTML5 - Markup
+Application URL: http://34.149.47.249/
 
-### Backend
-- Node.js - Runtime environment
-- Express.js - Web framework
-- MongoDB - NoSQL database
-- Mongoose - MongoDB object modeling
-
-### DevOps
-- Docker - Containerization
-- Docker Compose - Multi-container orchestration
-- Vagrant - Development environment and automation
-- Ansible - Configuration management and automation
-- Virtualbox - Virtualization Provider
-
-
-## Project Structure
+## Architecture
 ```
-yolo/
-|-- vagrant/
-│   -- Vagrantfile  # VM configuration and provisioning
-│   -- .vagrant/  # Vagrant metadata (auto-generated)
-|
-|-- ansible/
-│   |-- ansible.cfg  # Ansible configuration
-│   |-- group_vars/
-│   |   -- all.yml   # Global variables for all environments
-│   |-- inventory/
-│   │   -- development/
-│   │       -- hosts.ini    # Development environment hosts
-│   |-- playbooks/
-│   |     -- deploy-dev.yml   # Main deployment playbook
-│   |-- roles/    # Ansible roles for each component
-│        -- backend/
-│        -- common/
-│        -- docker/
-│        -- frontend/
-│        -- mongodb/
-|
-|-- backend/
-|-- client/
-|-- .gitignore
-|-- backend.png
-|-- frontend.png
-|-- docker-compose.yml
-|-- LICENSE
-|-- README.md
+Internet
+    ↓
+Ingress Controller
+    ↓
+
+Frontend   |    Backend    
+(Nginx)    |   (Node.js)   
+Port: 80   |  Port: 5001  
+
+      ↓
+
+   MongoDB    
+   StatefulSet  
+   Port: 27017 
+
+         ↓
+[Persistent Volume]
 ```
 
 ## Prerequisites
 
-- Node.js v18+
-- npm 
-- MongoDB v4.4+
-- Docker and Docker Compose
-- Vagrant v2.0+
-- Virtualbox v6.0+
-- Ansible v2.9+
+- Kubernetes cluster (GKE, EKS, AKS, or local with Minikube/Kind)
+- kubectl CLI configured
+- NGINX Ingress Controller installed
+- Docker images available on Docker Hub:
+  - `sammaingi/yolo-frontend:1.2.1`
+  - `sammaingi/yolo-backend:1.1.2`
+
+## Project Structure
+
+```
+
+|-- namespace.yaml              # Creates yolo-app namespace
+│
+|-- mongodb/
+|   |-- storage-class.yaml     # Defines storage for MongoDB
+│   |-- configmap.yaml         # MongoDB configuration
+│   |-- secret.yaml            # MongoDB credentials (base64 encoded)
+│   |-- deployment.yaml        # MongoDB StatefulSet
+│   |-- service.yaml           # Headless service for MongoDB
+│
+|-- backend/
+│   |-- configmap.yaml         # Backend environment variables
+│   |-- deployment.yaml        # Backend deployment with 2 replicas
+│   |-- service.yaml           # ClusterIP service
+│   |-- backendconfig.yaml     # GKE health check configuration
+│
+|-- frontend/
+│   |-- configmap.yaml         # Frontend configuration
+│   |-- deployment.yaml        # Frontend deployment with 2 replicas
+│   |-- service.yaml           # ClusterIP service with session affinity
+│
+|-- ingress/
+|   |-- ingress.yaml               # Routes external traffic to services
+```
+
 
 ## Installation & Deployment Options
 
-Clone Repo
+### Step 1: Clone Repo
 ```bash
 
-git clone https:github.com/layersony/yolo.git
+git clone https://github.com/layersony/yolo-k8s.git
 
 ```
 
-## For Setups
-
-###  Option 1
-
-Will Be Using Vagrant + Ansible
-
-*TO NOTE*
-
-The VM will use this resources:
-- RAM: 1024 MB
-- CPUs: 2 cores
-- Disk: Dynamic allocation
-
-#### Step By Step Procedure
+### Step 2: Create Namespace
 
 ```bash
-
-cd yolo
-
-# navigate to vagrant directory
-cd vagrant
-
-# Start and Provisioning VM
-vagrant up
-
-# the above command will
-# Create an Ubuntu 22.04 on VM
-# Configure networking and port forwarding
-# Install Docker and all dependencies
-# Deploy MongoDB, Backend, and Frontend containers
-# Configure the entire application stack
-
+cd manifest
+kubectl apply -f namespace.yaml
 ```
 
-The access points once provisioned will be:
-
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5001
-- MongoDB: mongodb://localhost:27017
-- VM IP: `192.168.56.10`
-- NAT (for Internet Access)
-
-### Ports Forwarding
-
-| Service | VM Port | Host Port|
-|---------|---------|----------|
-| Frontend | 3000 | 3000|
-| Backend | 5001 | 5001 |
-| MongoDB | 27017 | 27017|
-
-
-### Option 2
-
-
-   
-## Docker Deployment
-For quick deployment without VM overhead:
-
-### Quick Start with Docker
-
-1. **Build and start all services**
-   ```bash
-   docker-compose up --build
-   ```
-
-2. **Access the application**
-   - Frontend: `http://localhost:80`
-   - Backend API: `http://localhost:5001`
-   - MongoDB: `mongodb://localhost:27017`
-
-The application consists of three services:
-
-- mongodb: MongoDB database server (port 27017)
-- backend: Express.js API server (port 5001)
-- frontend: React development server (port 80)
-
-### Docker Commands
+### Step 3: Deploy MongoDB (Database Layer)
 
 ```bash
-# Start services in detached mode
-docker-compose up -d
+# Create storage class for persistent volumes
+kubectl apply -f storage-class.yaml
 
-# Stop all services
-docker-compose down
+# Deploy MongoDB configuration and secrets
+kubectl apply -f mongodb/configmap.yaml
+kubectl apply -f mongodb/secret.yaml
 
-# View logs
-docker-compose logs -f
-
-# Rebuild specific service
-docker-compose up --build backend
-
-# Remove all containers and volumes
-docker-compose down -v
+# Deploy MongoDB StatefulSet
+kubectl apply -f mongodb/deployment.yaml
+kubectl apply -f mongodb/service.yaml
 ```
 
-## Testing
-For Vagrant + Ansible
+**Wait for MongoDB to be ready:**
+```bash
+kubectl wait --for=condition=ready pod -l app=mongodb -n yolo-app --timeout=300s
+```
+
+### Step 4: Deploy Backend (Application Layer)
 
 ```bash
-# SSH into VM first
-vagrant ssh
+kubectl apply -f backend/configmap.yaml
+kubectl apply -f backend/deployment.yaml
+kubectl apply -f backend/service.yaml
 
-# Run backend tests
-cd /opt/yolo-app/backend
-npm test
-
-# Run frontend tests
-cd /opt/yolo-app/client
-npm test
-
-# Exit VM
-exit
+# For GKE only
+kubectl apply -f backend/backendconfig.yaml
 ```
 
-For Docker
+**Verify backend is running:**
+```bash
+kubectl get pods -n yolo-app -l app=backend
+```
+
+### Step 5: Deploy Frontend (Presentation Layer)
 
 ```bash
-# Run backend tests
-cd backend
-npm test
-
-# Run frontend tests
-cd client
-npm test
+kubectl apply -f frontend/configmap.yaml
+kubectl apply -f frontend/deployment.yaml
+kubectl apply -f frontend/service.yaml
 ```
+
+### Step 6: Configure Ingress
+
+```bash
+kubectl apply -f ingress/ingress.yaml
+```
+
+**Get the ingress IP address:**
+```bash
+kubectl get ingress -n yolo-app
+```
+
+## Accessing the Application
+
+Once deployed, access the application using the Ingress IP address:
+
+- **Frontend**: `http://<INGRESS-IP>/`
+- **Backend API**: `http://<INGRESS-IP>/api/products`
+
+## Configuration Details
+
+### MongoDB Credentials
+
+The MongoDB credentials are stored in `mongodb/secret.yaml` (base64 encoded):
+- **Username**: `admin`
+- **Password**: `password123`
+
+**Security Note**: Change these credentials in production by encoding new values:
+```bash
+echo -n 'username' | base64
+echo -n 'password' | base64
+```
+
+### Environment Variables
+
+**Backend Configuration** (`backend/configmap.yaml`):
+- `NODE_ENV`: production
+- `PORT`: 5001
+- `MONGODB_URI`: Connection string to MongoDB StatefulSet
+
+**Frontend Configuration** (`frontend/configmap.yaml`):
+- `REACT_APP_API_URL`: /api
+
+## Resource Allocation
+
+| Component | Replicas | CPU Request | CPU Limit | Memory Request | Memory Limit |
+|-----------|----------|-------------|-----------|----------------|--------------|
+| Frontend  | 2        | 100m        | 250m      | 128Mi          | 256Mi        |
+| Backend   | 2        | 250m        | 500m      | 256Mi          | 512Mi        |
+| MongoDB   | 1        | 250m        | 500m      | 256Mi          | 512Mi        |
+
+## Health Checks
+
+All components have configured health probes:
+
+**Frontend & Backend**:
+- Liveness probes ensure containers restart if unhealthy
+- Readiness probes prevent traffic to pods that aren't ready
+
+**MongoDB**:
+- Uses `db.adminCommand('ping')` for health verification
+
+## Monitoring and Troubleshooting
+
+### Check pod status
+```bash
+kubectl get pods -n yolo-app
+```
+
+### View logs
+```bash
+# Frontend logs
+kubectl logs -f deployment/frontend -n yolo-app
+
+# Backend logs
+kubectl logs -f deployment/backend -n yolo-app
+
+# MongoDB logs
+kubectl logs -f statefulset/mongodb -n yolo-app
+```
+
+## Cleanup
+
+To remove all resources:
+
+```bash
+# Delete all resources in the namespace
+kubectl delete namespace yolo-app
+
+# Delete storage class
+kubectl delete storageclass yolo-storage
+```
+
+## Support
+
+For issues or questions, please refer to:
+- Kubernetes documentation: https://kubernetes.io/docs/
+- NGINX Ingress Controller: https://kubernetes.github.io/ingress-nginx/
 
 ## License
 
