@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: yolo-app
+  labels:
+    app: yolo
+    environment: production
+  annotations:
+    description: "Namespace For Yolo E-Commerce App"
