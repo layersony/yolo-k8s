@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: yolo-app
+  labels:
+    app: backend
+data:
+  NODE_ENV: production
+  PORT: "5001"
+  MONGODB_URI: "mongodb://admin:password123@mongodb-0.mongodb-service.yolo-app.svc.cluster.local:27017/yolomy?authSource=admin"
